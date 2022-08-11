@@ -1,0 +1,107 @@
+import UIKit
+
+class ViewController: UIViewController {
+    
+
+
+    @IBOutlet weak var saveImageView: UIImageView!{
+        didSet {
+            saveImageView.image = UIImage(named: "building")
+        }
+    }
+    
+    
+    
+    @IBOutlet weak var saveButtonTapped: UIButton!{
+        
+        didSet {
+            saveButtonTapped.addTarget(self, action: #selector(ViewController.save),
+                                       for:.touchUpInside)
+        }
+    }
+    
+    @objc func save(){
+        if let buildingImage = UIImage(named: "building"){
+            DispatchQueue.global(qos: .background).async {
+                self.store(image: buildingImage, forKey: "buildingImage", withStorageType: .fileSystem)
+            }
+        }
+            
+    }
+    
+    
+    @IBOutlet weak var displayImageView: UIImageView!
+    
+    
+    @IBOutlet weak var loadButtonTapped: UIButton! {
+        didSet {
+            loadButtonTapped.addTarget(self,
+                                       action:#selector(ViewController.load),
+                                       for: .touchUpInside)
+        }
+        
+    }
+    
+    @objc func load(){
+        DispatchQueue.global(qos: .background).async {
+            if let savedImage = self.loadImage(forKey: "buildingImage", inStorageType: .fileSystem) {
+                self.displayImageView.image = savedImage
+            }
+        }
+        
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Do any additional setup after loading the view.
+    }
+    //filePath
+    private func filePath(forKey key : String)-> URL? {
+        let fileManager = FileManager.default
+        guard let documentURL = fileManager.urls(for: .documentDirectory, in: FileManager.SearchPathDomainMask.userDomainMask).first else {return nil}
+        return documentURL.appendingPathComponent(key + ".png")
+    }
+    
+    //saveImage
+    private func store(image:UIImage, forKey key:String, withStorageType storageType: StorageType){
+        if let pngRepresentation = image.pngData(){
+            switch storageType {
+            case .fileSystem:
+                if let filePath = filePath(forKey: key){
+                    do {
+                        try pngRepresentation.write(to: filePath, options: .atomic)
+                    } catch let err {
+                        print("Saving File is Error",err)
+                    }
+                }
+            case .userDefaults:
+                UserDefaults.standard.set(pngRepresentation, forKey: key)
+            }
+        }
+            
+    }
+    //loadImage
+    private func loadImage(forKey key: String, inStorageType storageType: StorageType)->UIImage?{
+        switch storageType {
+        case .fileSystem:
+            if let filePath = self.filePath(forKey: key),
+               let fileData = FileManager.default.contents(atPath: filePath.path),
+               let image = UIImage(data: fileData){
+                return image
+            }
+               
+                
+        case .userDefaults:
+            if let imageData = UserDefaults.standard.object(forKey: key)as? Data,let image = UIImage(data: imageData){
+                return image
+            }
+               
+            
+        }
+        return nil
+    }
+    
+    
+
+}
+
